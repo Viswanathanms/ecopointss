@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "ecopoints": {
+      "root": ".",
+      "runtime": "python",
+      "entrypoint": "server.py"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": { "service": "ecopoints" } }
+  ]
+}

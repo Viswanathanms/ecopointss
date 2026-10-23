@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ecopoints
+    runtime: python
+    plan: starter          # persistent disks need a paid plan
+    buildCommand: echo "no build step"
+    startCommand: python3 server.py
+    envVars:
+      - {key: HOST, value: 0.0.0.0}
+      - {key: COOKIE_SECURE, value: "1"}
+      - {key: ECO_DATA, value: /var/data}
+      - {key: ADMIN_USER, value: admin}
+      - {key: ADMIN_PASSWORD, sync: false}   # you type this in the Render dashboard
+      - {key: PYTHON_VERSION, value: 3.12.3}
+    disk: {name: ecodata, mountPath: /var/data, sizeGB: 1}

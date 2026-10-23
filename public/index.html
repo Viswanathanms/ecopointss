@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EcoPoints</title>
+<style>
+:root{--bg:#f6faf6;--sf:#fff;--tx:#12301f;--mu:#5a7364;--pr:#1b5e3a;--em:#10b981;--ln:#dcebdf;--bad:#b42318;--warn:#a15c07;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a13;--sf:#15271c;--tx:#e6f3ea;--mu:#9bb8a5;--pr:#34d399;--em:#10b981;--ln:#24402f;--bad:#ff8a80;--warn:#f5b84a}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:84px}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 12px}h2{font-size:17px;margin:18px 0 8px}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(18,48,31,.06)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:34px;font-weight:700;color:var(--pr);line-height:1.1}.mu{color:var(--mu);font-size:14px}
+button,select,input{font:inherit;color:var(--tx)}
+.btn{background:var(--pr);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;width:100%}
+:root[data-theme="dark"] .btn,.dk .btn{color:#06210f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn{color:#06210f}}
+.btn.s{background:transparent;color:var(--pr);border:1.5px solid var(--pr)}.btn.sm{width:auto;padding:6px 12px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{border:1.5px solid var(--ln);background:var(--sf);border-radius:999px;padding:8px 14px;cursor:pointer}
+.chip.on{border-color:var(--em);background:var(--em);color:#06210f;font-weight:600}
+input,select{width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--ln);background:var(--sf)}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--sf);border-top:1px solid var(--ln);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+nav button{background:none;border:0;padding:6px 8px;color:var(--mu);font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:52px}
+nav button.on{color:var(--pr);font-weight:700}nav svg{width:22px;height:22px}
+video{width:100%;border-radius:16px;background:#000;aspect-ratio:3/4;object-fit:cover}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--ln)}.row:last-child{border:0}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--ln)}.ok{color:var(--pr)}.no{color:var(--bad)}.wr{color:var(--warn)}
+.bar{height:10px;border-radius:6px;background:var(--em);margin:2px 0 8px}
+.sim{background:#fff4d6;color:#6b4500;border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0}
+img.th{width:52px;height:52px;border-radius:10px;object-fit:cover}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--em);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center}
+</style></head><body><main id="app"></main><nav id="nav"></nav>
+<script>
+const CATS={plastic:"Plastic",paper:"Paper and cardboard",metal:"Metal and cans",dry:"General dry waste",ewaste:"Electronic waste",battery:"Batteries",other:"Other"};
+const ST={ok:"Points Awarded",rev:"Needs Review",rej:"Rejected"};
+let S,mem=null;
+const seed=()=>({me:{name:"Student"},role:"student",
+cps:[{id:"c1",name:"Library Block Bin",tok:"ECO-LIB-01",on:1},{id:"c2",name:"Canteen E-Waste Box",tok:"ECO-CAN-02",on:1},{id:"c3",name:"Hostel Gate Bin",tok:"ECO-HOS-03",on:1},{id:"c4",name:"Old Gym Bin",tok:"ECO-GYM-04",on:0}],
+cfg:{v:{plastic:10,paper:10,metal:10,dry:5,ewaste:20,battery:20,other:5},report:5,daily:5,thr:0.6},
+subs:[],led:[],rewards:[{id:"r1",name:"Eco-achiever badge",req:50},{id:"r2",name:"Digital certificate",req:150},{id:"r3",name:"Participation recognition",req:300}],reds:[],audit:[],
+others:[{n:"GreenFox",d:"Civil",p:420,m:90},{n:"RiverMint",d:"CSE",p:365,m:70},{n:"LeafyLee",d:"Mech",p:240,m:60},{n:"SunnyPine",d:"ECE",p:180,m:30}]});
+S=seed();
+const save=()=>{};
+const bal=()=>S.led.reduce((a,l)=>a+l.pts,0);
+const mon=()=>S.led.filter(l=>l.pts>0&&new Date(l.t).getMonth()==new Date().getMonth()).reduce((a,l)=>a+l.pts,0);
+const board=()=>[...S.others,{n:S.me.name+" (you)",d:"You",p:S.led.filter(l=>l.pts>0).reduce((a,l)=>a+l.pts,0),m:mon()}].sort((a,b)=>b.p-a.p);
+const log=(a,d)=>{S.audit.unshift({a,d,t:Date.now()})};
+function award(sid,pts,reason){if(S.led.some(l=>l.sid===sid))return false;S.led.push({id:"t"+Date.now(),sid,pts,reason,t:Date.now()});return true}
+const tm=t=>new Date(t).toLocaleString([],{dateStyle:"short",timeStyle:"short"});
+let V="home",C={step:0,type:"dispose",cat:"plastic",cp:"",qr:false,msg:"",res:null,busy:false},stream=null;
+const ic={home:"M3 11l9-8 9 8v10H3z",scan:"M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 12h8",list:"M4 6h16M4 12h16M4 18h16",rank:"M6 20V10M12 20V4M18 20v-8",gift:"M3 8h18v4H3zM5 12v8h14v-8M12 8v12",admin:"M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"};
+const tabs=[["home","Home"],["scan","Capture"],["list","Reports"],["rank","Ranks"],["gift","Rewards"]];
+function nav(){const t=S.role=="admin"?[["admin","Admin"],["list","Review"]]:tabs;
+document.getElementById("nav").innerHTML=t.map(([k,l])=>`<button class="${V==k||(k=="list"&&V=="rev")?"on":""}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${ic[k]}"/></svg>${l}</button>`).join("")}
+function go(v){if(v=="scan"&&V!="scan"){C={...C,step:0,res:null,msg:""}}stopCam();V=S.role=="admin"&&v=="list"?"rev":v;render()}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+function setRole(r){S.role=r;V=r=="admin"?"admin":"home";stopCam();save();render()}
+const chips=(obj,sel,fn)=>`<div class="chips">${Object.entries(obj).map(([k,v])=>`<button class="chip ${sel==k?"on":""}" onclick="${fn}('${k}')">${v}</button>`).join("")}</div>`;
+function render(){nav();const a=document.getElementById("app");
+const top=`<div class="top"><b style="color:var(--pr);font-size:20px">EcoPoints</b><button class="btn s sm" onclick="setRole('${S.role=="admin"?"student":"admin"}')">${S.role=="admin"?"Student view":"Admin demo"}</button></div>`;
+a.innerHTML=top+({home,scan,list,rank,gift,admin,rev}[V])();if(V=="scan"&&C.step==1)attach()}
+function home(){const mine=S.subs,ok=mine.filter(s=>s.vs==ST.ok).length,pend=mine.filter(s=>s.vs==ST.rev).length,rk=board().findIndex(x=>x.d=="You")+1;
+return`<h1>Hi ${S.me.name}</h1><div class="card"><div class="mu">Available points</div><div class="big">${bal()}</div></div>
+<div class="grid"><div class="card"><div class="big">${ok}</div><div class="mu">Verified</div></div><div class="card"><div class="big">${pend}</div><div class="mu">Pending review</div></div><div class="card"><div class="big">${mon()}</div><div class="mu">Points this month</div></div><div class="card"><div class="big">#${rk}</div><div class="mu">Your rank</div></div></div>
+<button class="btn" onclick="go('scan')">Capture waste</button><h2>Leaderboard name</h2><input value="${S.me.name}" maxlength="16" onchange="renameMe(this.value)" aria-label="Display name">
+<h2>Recent activity</h2><div class="card">${recent(S.subs.slice(0,4))}</div>`}
+const recent=l=>l.length?l.map(s=>`<div class="row"><span style="display:flex;gap:10px;align-items:center"><img class="th" alt="" src="${s.img}"><span>${CATS[s.cat]}<br><span class="mu">${s.type=="dispose"?"Disposal":"Report"} · ${tm(s.t)}</span></span></span><span><b class="${s.vs==ST.ok?"ok":s.vs==ST.rej?"no":"wr"}">${s.pts?"+"+s.pts:s.vs}</b></span></div>`).join(""):`<p class="mu">Nothing yet. Capture your first waste item.</p>`;
+function scan(){
+if(C.res)return result();
+if(C.step==0){const on=S.cps.filter(c=>c.on);
+return`<h1>New submission</h1><div class="chips"><button class="chip ${C.type=="dispose"?"on":""}" onclick="C.type='dispose';render()">I disposed waste</button><button class="chip ${C.type=="report"?"on":""}" onclick="C.type='report';render()">Report overflowing waste</button></div>
+<h2>Waste type</h2>${chips(CATS,C.cat,"setCat")}
+<h2>Collection point</h2><select onchange="C.cp=this.value;C.qr=false;render()"><option value="">Choose a point</option>${on.map(c=>`<option value="${c.id}" ${C.cp==c.id?"selected":""}>${c.name}</option>`).join("")}</select>
+${C.type=="dispose"?`<h2>Confirm QR code</h2><div class="card">${C.qr?`<b class="ok">QR verified ✓</b>`:`<button class="btn s" onclick="qrScan()">Scan QR code</button><p class="mu">Or type the code printed on the bin (demo: ECO-LIB-01).</p><input id="qc" placeholder="ECO-XXX-00" aria-label="QR code"><button class="btn sm" style="margin-top:8px" onclick="qrType()">Check code</button>`}<div id="qv"></div><p class="mu" id="qm">${C.msg}</p></div>`:""}
+${["battery","ewaste"].includes(C.cat)?`<p class="mu">Handle batteries and electronics carefully. Don’t touch damaged items; use the designated box.</p>`:""}
+<button class="btn" onclick="next()">Continue to live camera</button>`}
+return`<h1>Live camera check</h1><p class="mu">Show the waste item and move the camera slightly. We record 3 seconds live. Gallery uploads aren’t allowed.</p>
+<video id="v" playsinline muted></video><p class="mu" id="cm">${C.msg||"Starting camera…"}</p><button class="btn" id="go" onclick="live()" ${C.busy?"disabled":""}>Start 3-second live check</button>
+<button class="btn s" style="margin-top:8px" onclick="C.step=0;stopCam();render()">Back</button>`}
+function setCat(k){C.cat=k;render()}
+function next(){if(!C.cp){C.msg="Choose a collection point first.";alert(C.msg);return}if(C.type=="dispose"&&!C.qr){C.msg="Verify the QR code before disposal.";render();return}C.step=1;C.msg="";render()}
+function chk(t){const c=S.cps.find(x=>x.id==C.cp);if(c&&c.on&&c.tok==t.trim()){C.qr=true;C.msg=""}else C.msg="Invalid or deactivated QR code for this point.";stopCam();render()}
+function qrType(){chk(document.getElementById("qc").value)}
+async function qrScan(){if(!("BarcodeDetector"in window)){C.msg="QR scanning isn’t supported in this browser. Type the code instead.";document.getElementById("qm").textContent=C.msg;return}
+try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});const v=document.createElement("video");v.srcObject=stream;v.playsInline=true;v.style.cssText="width:100%;border-radius:12px;margin-top:8px";document.getElementById("qv").append(v);await v.play();const d=new BarcodeDetector({formats:["qr_code"]});const iv=setInterval(async()=>{if(!stream){clearInterval(iv);return}const r=await d.detect(v).catch(()=>[]);if(r[0]){clearInterval(iv);chk(r[0].rawValue)}},400)}catch(e){document.getElementById("qm").textContent="Camera unavailable. Type the code instead."}}
+async function attach(){const v=document.getElementById("v");try{if(!stream)stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});v.srcObject=stream;await v.play();document.getElementById("cm").textContent="Camera ready."}catch(e){C.demo=true;document.getElementById("cm").innerHTML=`Camera blocked or unavailable. Allow camera access in your browser, or run a simulated check.`;document.getElementById("go").textContent="Run simulated demo check"}}
+function frame(v,demo){const c=document.createElement("canvas");c.width=c.height=32;const x=c.getContext("2d");if(demo){const g=x.createImageData(32,32);for(let i=0;i<g.data.length;i+=4){const n=90+Math.random()*120;g.data[i]=g.data[i+1]=g.data[i+2]=n;g.data[i+3]=255}x.putImageData(g,0,0)}else x.drawImage(v,0,0,32,32);const d=x.getImageData(0,0,32,32).data,gr=[];for(let i=0;i<d.length;i+=4)gr.push(.3*d[i]+.59*d[i+1]+.11*d[i+2]);return gr}
+async function live(){if(C.busy)return;C.busy=true;const v=document.getElementById("v"),btn=document.getElementById("go"),cm=document.getElementById("cm");btn.disabled=true;const fr=[];
+for(let i=0;i<6;i++){cm.textContent=`Recording live… ${3-Math.floor(i/2)}s. Keep the item in view.`;fr.push(frame(v,C.demo&&!stream));await new Promise(r=>setTimeout(r,500))}
+let th="";{const c=document.createElement("canvas");c.width=192;c.height=192;const x=c.getContext("2d");x.drawImage(v,0,0,192,192);th=c.toDataURL("image/jpeg",.5)}
+const L=fr[5],m=L.reduce((a,b)=>a+b)/L.length,vr=L.reduce((a,b)=>a+(b-m)**2,0)/L.length;
+let mo=0;for(let i=1;i<6;i++)mo+=fr[i].reduce((a,b,j)=>a+Math.abs(b-fr[i-1][j]),0)/1024;mo/=5;
+let h="";for(let by=0;by<8;by++)for(let bx=0;bx<8;bx++){let s=0;for(let y=0;y<4;y++)for(let x=0;x<4;x++)s+=L[(by*4+y)*32+bx*4+x];h+=s/16>m?"1":"0"}
+C.busy=false;stopCam();process({th,frames:fr,demo:C.demo&&!stream})}
+const ham=(a,b)=>[...a].reduce((n,c,i)=>n+(c!=b[i]),0);
+function process(f){const id="s"+Date.now(),cfg=S.cfg,now=Date.now();const conf=Math.min(.97,Math.max(.2,.4+Math.min(f.vr,2500)/2500*.55));
+const s={id,type:C.type,cat:C.cat,cp:C.cp,img:f.th,hash:f.h,ai:{cat:C.cat,conf},sim:true,demo:f.demo,vs:ST.ok,cs:"Awaiting collection",reason:"",t:now,pts:0};
+const day=S.subs.filter(x=>x.vs==ST.ok&&new Date(x.t).toDateString()==new Date().toDateString()).length;
+const dupe=S.subs.some(x=>ham(x.hash,f.h)<=5);
+const samePt=S.subs.some(x=>x.cp==C.cp&&x.cat==C.cat&&x.vs==ST.ok&&now-x.t<6e5);
+if(f.vr<60){s.vs=ST.rej;s.reason="The image looks blank or unclear. Try again with better light."}
+else if(C.type=="dispose"&&!C.qr){s.vs=ST.rej;s.reason="Disposal needs a valid QR scan."}
+else if(f.mo<.8&&!f.demo){s.vs=ST.rev;s.reason="No live movement detected. Hold the phone and move slightly."}
+else if(dupe){s.vs=ST.rev;s.reason="Looks similar to an earlier photo. Sent for review."}
+else if(samePt){s.vs=ST.rev;s.reason="This point and category already earned points recently."}
+else if(conf<cfg.thr){s.vs=ST.rev;s.reason="Low image confidence. Sent for review."}
+else if(day>=cfg.daily){s.vs=ST.rev;s.reason="Daily reward limit reached."}
+if(s.vs==ST.ok){s.pts=C.type=="dispose"?cfg.v[C.cat]:cfg.report;award(id,s.pts,(C.type=="dispose"?"Verified disposal: ":"Waste report: ")+CATS[C.cat])}
+if(f.demo)s.reason=(s.reason?s.reason+" ":"")+"Demo camera used.";
+S.subs.unshift(s);log("verify:"+s.vs,id+" "+s.reason);save();C.res=s;render()}
+function result(){const s=C.res,c=s.vs==ST.ok?"ok":s.vs==ST.rej?"no":"wr";
+return`<h1 class="${c}">${s.vs==ST.ok?"+"+s.pts+" points!":s.vs}</h1><div class="card"><div class="row"><span>Type</span><b>${CATS[s.cat]}</b></div><div class="row"><span>Image check</span><b>${CATS[s.ai.cat]} · ${Math.round(s.ai.conf*100)}%</b></div><div class="row"><span>Collection status</span><b>${s.cs}</b></div>${s.reason?`<p class="mu">${s.reason}</p>`:""}</div>
+<div class="sim">Placeholder image check: a real AI classifier isn’t plugged in yet (see classify() in server.py). Photos alone can’t prove physical disposal.</div>
+<button class="btn" onclick="C.res=null;C.step=0;C.qr=false;render()">Submit another</button><button class="btn s" style="margin-top:8px" onclick="go('list')">View my reports</button>`}
+function list(){const p=S.led.slice().reverse();return`<h1>My reports</h1><div class="card">${recent(S.subs)}</div><h2>Points history</h2><div class="card">${p.length?p.map(l=>`<div class="row"><span>${l.reason}<br><span class="mu">${tm(l.t)}</span></span><b class="${l.pts>0?"ok":"no"}">${l.pts>0?"+":""}${l.pts}</b></div>`).join(""):`<p class="mu">No points yet.</p>`}</div>`}
+function rank(){return`<h1>Leaderboard</h1><div class="card">${board().map((x,i)=>`<div class="row"><span><b>${i+1}.</b> ${x.n}<br><span class="mu">${x.d} · +${x.m} this month</span></span><b class="ok">${x.p}</b></div>`).join("")}</div>`}
+function gift(){return`<h1>Rewards</h1><p class="mu">Balance: <b>${bal()}</b> points. Points have no cash value.</p>${S.rewards.map(r=>`<div class="card row"><span><b>${r.name}</b><br><span class="mu">${r.req} points</span></span><button class="btn sm" ${bal()<r.req?"disabled":""} onclick="redeem('${r.id}')">Redeem</button></div>`).join("")}<h2>History</h2><div class="card">${S.reds.length?S.reds.map(r=>`<div class="row"><span>${r.name}</span><span class="mu">${r.status}</span></div>`).join(""):`<p class="mu">No redemptions yet.</p>`}</div>`}
+function redeem(id){const r=S.rewards.find(x=>x.id==id);if(bal()<r.req)return;S.led.push({id:"t"+Date.now(),sid:"red"+Date.now(),pts:-r.req,reason:"Redeemed: "+r.name,t:Date.now()});S.reds.unshift({name:r.name,status:"Requested"});log("redeem",r.name);save();render()}
+function admin(){const cnt={};S.subs.forEach(s=>cnt[s.cat]=(cnt[s.cat]||0)+1);const mx=Math.max(1,...Object.values(cnt));
+return`<h1>Admin dashboard</h1>
+<div class="grid"><div class="card"><div class="big">${S.subs.length}</div><div class="mu">Reports</div></div><div class="card"><div class="big">${S.subs.filter(s=>s.vs==ST.ok&&s.type=="dispose").length}</div><div class="mu">Verified disposals</div></div><div class="card"><div class="big">${S.led.filter(l=>l.pts>0).reduce((a,l)=>a+l.pts,0)}</div><div class="mu">Points awarded</div></div><div class="card"><div class="big">${S.subs.filter(s=>s.vs==ST.rev).length}</div><div class="mu">Flagged</div></div></div>
+<h2>Waste categories</h2><div class="card">${Object.keys(CATS).map(k=>`<div class="mu">${CATS[k]} · ${cnt[k]||0}</div><div class="bar" style="width:${(cnt[k]||0)/mx*100}%"></div>`).join("")}</div>
+<h2>Collection points</h2><div class="card">${S.cps.map(c=>`<div class="row"><span>${c.name}<br><span class="mu">QR code: ${c.tok}</span></span><button class="btn sm ${c.on?"s":""}" onclick="tog('${c.id}')">${c.on?"Deactivate":"Activate"}</button></div>`).join("")}<input id="np" placeholder="New point name" style="margin-top:8px"><button class="btn sm" style="margin-top:8px" onclick="addCp()">Add point</button></div>
+<h2>Point values</h2><div class="card">${Object.keys(CATS).map(k=>`<div class="row"><span>${CATS[k]}</span><input type="number" min="0" style="width:80px" value="${S.cfg.v[k]}" onchange="S.cfg.v['${k}']=+this.value;cfgSave()"></div>`).join("")}<div class="row"><span>Overflow report</span><input type="number" min="0" style="width:80px" value="${S.cfg.report}" onchange="S.cfg.report=+this.value;cfgSave()"></div><div class="row"><span>Daily reward limit</span><input type="number" min="1" style="width:80px" value="${S.cfg.daily}" onchange="S.cfg.daily=+this.value;cfgSave()"></div></div>`}
+function tog(id){const c=S.cps.find(x=>x.id==id);c.on=c.on?0:1;log("point",c.name+(c.on?" on":" off"));save();render()}
+function addCp(){const n=document.getElementById("np").value.trim();if(!n)return;S.cps.push({id:"c"+Date.now(),name:n,tok:"ECO-"+Math.random().toString(36).slice(2,6).toUpperCase()+"-"+(S.cps.length+1),on:1});save();render()}
+function rev(){const f=S.subs.filter(s=>s.vs==ST.rev);
+return`<h1>Review queue</h1><div class="card">${f.length?f.map(s=>`<div class="row"><span style="display:flex;gap:10px;align-items:center"><img class="th" alt="" src="${s.img}"><span>${CATS[s.cat]}<br><span class="mu">${s.reason}</span></span></span><span><button class="btn sm" onclick="dec('${s.id}',1)">Approve</button> <button class="btn sm s" onclick="dec('${s.id}',0)">Reject</button></span></div>`).join(""):`<p class="mu">No flagged submissions.</p>`}</div>
+<h2>Collection status</h2><div class="card">${S.subs.filter(s=>s.vs==ST.ok).slice(0,8).map(s=>`<div class="row"><span>${CATS[s.cat]}<br><span class="mu">${s.cs}</span></span><select style="width:auto" onchange="cs('${s.id}',this.value)">${["Awaiting collection","Collected","Handed over for recycling"].map(o=>`<option ${o==s.cs?"selected":""}>${o}</option>`).join("")}</select></div>`).join("")||`<p class="mu">Nothing to collect.</p>`}</div>
+<h2>Audit log</h2><div class="card">${S.audit.slice(0,8).map(a=>`<div class="row"><span>${a.a}<br><span class="mu">${a.d}</span></span><span class="mu">${tm(a.t)}</span></div>`).join("")||`<p class="mu">No entries.</p>`}</div>`}
+function dec(id,ok){const s=S.subs.find(x=>x.id==id);if(ok){s.vs=ST.ok;s.pts=s.type=="dispose"?S.cfg.v[s.cat]:S.cfg.report;award(id,s.pts,"Approved: "+CATS[s.cat])}else{s.vs=ST.rej;s.reason="Rejected by admin."}log(ok?"approve":"reject",id);save();render()}
+function cs(id,v){S.subs.find(x=>x.id==id).cs=v;log("collection",v);save()}
+render();
+</script>
+<script>
+let AUTH=false,L={reg:false,err:""};
+const api=async(m,u,b)=>{let r;try{r=await fetch(u,{method:m,headers:b?{"Content-Type":"application/json"}:{},body:b?JSON.stringify(b):undefined,credentials:"same-origin"})}catch(e){throw new Error(location.protocol=="file:"?"This page was opened as a file. Run python3 server.py, then open http://localhost:8000 in your browser.":"Cannot reach the server. Check that python3 server.py is still running.")}const j=await r.json().catch(()=>({}));if(r.status==401&&AUTH){AUTH=false;render()}if(!r.ok)throw new Error(j.error||"Request failed");return j};
+async function refresh(){const d=await api("GET","/api/state");Object.assign(S,{me:d.me,role:d.role,cps:d.cps,cfg:d.cfg,subs:d.subs,led:d.led,rewards:d.rewards,reds:d.reds,audit:d.audit,others:d.others});AUTH=true}
+const _render=render,_go=go;
+render=function(){if(!AUTH){stopCam();document.getElementById("nav").innerHTML="";document.getElementById("app").innerHTML=loginView();return}
+_render();const b=document.querySelector(".top button");if(b){b.textContent="Log out";b.setAttribute("onclick","logout()")}};
+go=async function(v){if(AUTH)await refresh().catch(()=>{});_go(v)};
+function loginView(){return`<div class="top"><b style="color:var(--pr);font-size:20px">EcoPoints</b></div><h1>${L.reg?"Create account":"Log in"}</h1>${location.protocol=="file:"?`<div class="sim">Opened as a file, so the backend is unreachable. Run <b>python3 server.py</b> and open <b>http://localhost:8000</b> instead.</div>`:""}<div class="card">
+<input id="lu" placeholder="Username" autocomplete="username" aria-label="Username">
+${L.reg?`<input id="ln" placeholder="Leaderboard name (max 16)" maxlength="16" style="margin-top:8px" aria-label="Leaderboard name"><input id="ld" placeholder="Department (optional)" maxlength="16" style="margin-top:8px" aria-label="Department">`:""}
+<input id="lp" type="password" placeholder="Password" autocomplete="${L.reg?"new-password":"current-password"}" style="margin-top:8px" aria-label="Password" onkeydown="if(event.key=='Enter')doAuth()">
+<p class="no" id="le">${L.err}</p><button class="btn" onclick="doAuth()">${L.reg?"Sign up":"Log in"}</button>
+<button class="btn s" style="margin-top:8px" onclick="L.reg=!L.reg;L.err='';render()">${L.reg?"I already have an account":"Create an account"}</button></div>`}
+async function doAuth(){const g=i=>(document.getElementById(i)||{}).value||"",u=g("lu"),p=g("lp");try{
+if(L.reg)await api("POST","/api/auth/register",{username:u,password:p,name:g("ln")||u.slice(0,16),dept:g("ld")});else await api("POST","/api/auth/login",{username:u,password:p});
+await refresh();L.err="";V=S.role=="admin"?"admin":"home";render()}catch(e){L.err=e.message;document.getElementById("le").textContent=e.message}}
+async function logout(){try{await api("POST","/api/auth/logout",{})}catch(e){}AUTH=false;stopCam();C={step:0,type:"dispose",cat:"plastic",cp:"",qr:false,msg:"",res:null,busy:false};render()}
+async function act(fn){try{await fn();await refresh()}catch(e){alert(e.message)}render()}
+chk=async function(t){stopCam();try{const r=await api("POST","/api/qr/verify",{cp:C.cp,token:t.trim()});C.qr=true;C.proof=r.proof;C.msg=""}catch(e){C.msg=e.message}render()};
+process=async function(f){try{const r=await api("POST","/api/submissions",{type:C.type,cat:C.cat,cp:C.cp,proof:C.proof,frames:f.frames.map(a=>a.map(Math.round)),th:f.th,demo:f.demo});C.res=r.submission;await refresh()}catch(e){C.msg=e.message;C.step=0;alert(e.message)}render()};
+redeem=id=>act(()=>api("POST","/api/redeem",{id}));
+tog=id=>act(()=>api("PATCH","/api/admin/points/"+id,{active:!S.cps.find(x=>x.id==id).on}));
+addCp=()=>{const n=document.getElementById("np").value.trim();if(n)act(()=>api("POST","/api/admin/points",{name:n}))};
+dec=(id,ok)=>act(()=>api("POST","/api/admin/submissions/"+id+"/decision",{approve:!!ok}));
+cs=(id,v)=>{api("PATCH","/api/admin/submissions/"+id+"/collection",{cs:v}).catch(e=>alert(e.message))};
+const cfgSave=()=>api("PUT","/api/admin/config",{v:S.cfg.v,report:S.cfg.report,daily:S.cfg.daily}).catch(e=>{alert(e.message);refresh().then(render)});
+const renameMe=n=>act(()=>api("PATCH","/api/me",{name:n.trim()||"Student"}));
+(async()=>{try{await refresh();V=S.role=="admin"?"admin":"home"}catch(e){}render()})();
+</script></body></html>
